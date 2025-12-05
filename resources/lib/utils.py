@@ -645,7 +645,7 @@ def create_item_details(item, source=None, position=None, reset=False):
         db_id = get_int(item, 'movieid', None) or get_int(item, 'id')
         group_name = '-'.join((
             str(get_int(item, 'setid')),
-            item.get('set', constants.UNTITLED),
+            item.get('set') or constants.UNTITLED,
         ))
         group_idx = constants.UNDEFINED
 

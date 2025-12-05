@@ -181,9 +181,6 @@ class UpNextPopupHandler(object):
 
             play_data = plugin_data.get('play_data')
             if play_data:
-                if not play_data['player']:
-                    self.player.pause()
-
                 from tmdb_helper import Players
 
                 Players(**play_data).play()
