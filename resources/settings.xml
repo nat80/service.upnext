@@ -514,6 +514,29 @@
                         <formatlabel>30633</formatlabel>
                     </control>
                 </setting>
+                <setting id="detectChapters" type="boolean" label="30650" help="">
+                    <level>0</level>
+                    <default>true</default>
+                    <control type="toggle"/>
+                </setting>
+                <setting id="detectChaptersThreshold" type="integer" label="30651" help="30652" parent="detectChapters">
+                    <level>0</level>
+                    <default>91</default>
+                    <constraints>
+                        <minimum>85</minimum>
+                        <step>1</step>
+                        <maximum>95</maximum>
+                    </constraints>
+                    <dependencies>
+                        <dependency type="visible">
+                            <condition operator="is" setting="detectChapters">true</condition>
+                        </dependency>
+                    </dependencies>
+                    <control type="slider" format="integer">
+                        <popup>false</popup>
+                        <formatlabel>30653</formatlabel>
+                    </control>
+                </setting>
                 <setting id="forceDefaultAction" type="boolean" label="30612" help="">
                     <level>0</level>
                     <default>false</default>

@@ -197,6 +197,52 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             self.popup_time, self.total_time, self.popup_cue
         ), utils.LOGINFO)
 
+    @staticmethod
+    def get_final_chapter_time(total_time, threshold=80):
+        """Get the start time of the final chapter if it's likely credits.
+        Returns the time in seconds, or None if no suitable chapter found.
+        
+        Detection logic (in priority order):
+        1. Method 2 (high confidence): If exactly ONE chapter exists in the
+           last 30% of the video AND it starts in the last 10%, it's credits.
+        2. Method 1 (fallback): If the last chapter starts at or after the
+           threshold percentage, use it as credits.
+        
+        Note: Chapters starting less than 10 seconds from the end are ignored
+        as they represent end-of-video markers, not credits."""
+        try:
+            import xbmc
+            chapters_str = xbmc.getInfoLabel('Player.Chapters')
+            if not chapters_str:
+                return None
+            # Chapters are comma-separated percentages
+            chapters = [float(c.strip()) for c in chapters_str.split(',') if c.strip()]
+            if len(chapters) < 2:
+                # Need at least 2 chapters (content + credits)
+                return None
+            
+            # Filter out chapters that start less than 10 seconds from the end
+            # (these are end-of-video markers, not credits)
+            min_threshold = ((total_time - 10) / total_time) * 100 if total_time > 10 else 0
+            valid_chapters = [c for c in chapters if c < min_threshold]
+            if len(valid_chapters) < 2:
+                return None
+            
+            # Method 2 (priority): If exactly ONE chapter in last 30% AND in last 10%
+            chapters_in_last_30 = [c for c in valid_chapters if c >= 70]
+            if len(chapters_in_last_30) == 1 and chapters_in_last_30[0] >= 90:
+                final_chapter = chapters_in_last_30[0]
+                return int((final_chapter / 100) * total_time)
+            
+            # Method 1 (fallback): Use last valid chapter if it's after threshold
+            final_chapter = valid_chapters[-1]
+            if final_chapter >= threshold:
+                return int((final_chapter / 100) * total_time)
+                
+        except (ValueError, TypeError, AttributeError):
+            pass
+        return None
+
     def set_popup_time(self, total_time):
         popup_time = 0
 
@@ -206,8 +252,19 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         if SETTINGS.enable_queue:
             total_time -= 1
 
+        # Try chapter detection first if enabled
+        if SETTINGS.detect_chapters:
+            chapter_time = self.get_final_chapter_time(
+                total_time, SETTINGS.detect_chapters_threshold
+            )
+            if chapter_time:
+                popup_time = chapter_time
+                # Disable cue point to keep popup until video ends (like fallback)
+                self.popup_cue = SETTINGS.sim_cue == constants.SETTING_ON
+                self.log('Popup: using chapter detection at {0}s'.format(popup_time))
+
         # Alway use plugin data, when available
-        if self.get_plugin_type():
+        if not popup_time and self.get_plugin_type():
             # Some plugins send the time from video end
             popup_duration = utils.get_int(self.data, 'notification_time', 0)
             # Some plugins send the time from video start (e.g. Netflix)

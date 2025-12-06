@@ -493,6 +493,22 @@ msgctxt "#30648"
 msgid "Next movie in movie set"
 msgstr ""
 
+msgctxt "#30650"
+msgid "Use chapters to detect credits"
+msgstr ""
+
+msgctxt "#30651"
+msgid "Chapter threshold"
+msgstr ""
+
+msgctxt "#30652"
+msgid "If the final chapter starts at or after this percentage of the video, it will be used as the credits start time"
+msgstr ""
+
+msgctxt "#30653"
+msgid "{0:d}%"
+msgstr ""
+
 msgctxt "#30700"
 msgid "Expert"
 msgstr ""

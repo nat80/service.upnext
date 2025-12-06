@@ -22,6 +22,8 @@ class UpNextSettings(object):
         'api_retry_attempts',
         'auto_play',
         'default_action_delay',
+        'detect_chapters',
+        'detect_chapters_threshold',
         'detect_enabled',
         'detect_level',
         'detect_matches',
@@ -241,6 +243,8 @@ class UpNextSettings(object):
 
         self.detect_enabled = self.get_bool('detectPlayTime')
         self.detect_period = self.get_int('detectPeriod')
+        self.detect_chapters = self.get_bool('detectChapters')
+        self.detect_chapters_threshold = self.get_int('detectChaptersThreshold', default=80)
 
         self.enable_queue = self.get_bool('enableQueue')
         self.early_queue_reset = self.get_bool('earlyQueueReset')
