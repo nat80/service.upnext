@@ -1,4 +1,5 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<?xml version="1.0" encoding="UTF-8"?>
+<addons>
 <addon id="service.upnext" name="UpNext" version="2.0.30+nat80" provider-name="im85288, MoojMidge, nat80">
     <requires>
         <import addon="xbmc.python" version="3.0.0"/>
@@ -56,3 +57,4 @@ Många befintliga tillägg integreras redan med den här utanför lådan-tjänst
         </assets>
     </extension>
 </addon>
+</addons>
