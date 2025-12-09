@@ -388,8 +388,18 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             if (current_video['set']
                     and utils.get_int(current_video, 'setid') > 0):
                 return current_video
-            if SETTINGS.enable_tmdbhelper_fallback and tmdb_id:
-                return cls._get_tmdb_movie_now_playing(current_video, tmdb_id)
+            if SETTINGS.enable_tmdbhelper_fallback:
+                # Try to get TMDB ID from plugin URL or by searching
+                if not tmdb_id:
+                    from tmdb_helper import TMDb
+                    title = current_video.get('title', '')
+                    year = utils.get_int(current_video, 'year')
+                    if title:
+                        tmdb_id = TMDb().get_tmdb_id(
+                            tmdb_type='movie', query=title, year=year if year else None
+                        )
+                if tmdb_id:
+                    return cls._get_tmdb_movie_now_playing(current_video, tmdb_id)
             return None
 
         # Previously resolved listitems may lose infotags that are set when the
@@ -471,118 +481,100 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         if not SETTINGS.import_tmdbhelper:
             return None
 
-        try:
-            from tmdb_helper import TMDb, get_item_details, get_next_episodes
+        from tmdb_helper import TMDb, get_item_details, get_next_episodes
 
-            if not TMDb.is_initialised():
-                return None
-
-            tmdb_id = current_video.get('tmdb_id')
-            if not tmdb_id:
-                tmdb_id = TMDb().get_tmdb_id(
-                    tmdb_type='tv', query=title, season=season, episode=episode
-                )
-
-            if not tmdb_id:
-                return None
-
-            current_details = get_item_details('tv', tmdb_id, season, episode)
-            if not current_details:
-                return None
-
-            episodes = get_next_episodes(tmdb_id, season, episode)
-            if not episodes:
-                return None
-
-            player_name = current_video.get('player', addon_id)
-            current_infolabels = getattr(current_details, 'infolabels', {}) or {}
-            current_art = getattr(current_details, 'art', {}) or {}
-            next_infolabels = getattr(episodes[0], 'infolabels', {}) or {}
-            next_art = getattr(episodes[0], 'art', {}) or {}
-
-            upnext.send_signal(
-                sender='UpNext.TMDBHelper',
-                upnext_info={
-                    'current_video': dict(
-                        current_infolabels,
-                        tmdb_id=tmdb_id,
-                        art=current_art,
-                        showtitle=title,
-                    ),
-                    'next_video': dict(
-                        next_infolabels,
-                        tmdb_id=tmdb_id,
-                        art=next_art,
-                        showtitle=title,
-                    ),
-                    'play_info': {},
-                    'player': player_name,
-                }
+        tmdb_id = current_video.get('tmdb_id')
+        if not tmdb_id:
+            tmdb_id = TMDb().get_tmdb_id(
+                tmdb_type='tv', query=title, season=season, episode=episode
             )
-            return None
 
-        except (ImportError, AttributeError, TypeError):
+        current_details = get_item_details('tv', tmdb_id, season, episode)
+        episodes = get_next_episodes(tmdb_id, season, episode)
+        
+        # Return None if no episodes found
+        if not episodes:
             return None
+        
+        player_name = current_video.get('player', addon_id)
+        current_infolabels = getattr(current_details, 'infolabels', {}) or {}
+        current_art = getattr(current_details, 'art', {}) or {}
+        next_infolabels = getattr(episodes[0], 'infolabels', {}) or {}
+        next_art = getattr(episodes[0], 'art', {}) or {}
+        
+        upnext.send_signal(
+            sender='UpNext.TMDBHelper',
+            upnext_info={
+                'current_video': dict(
+                    current_infolabels,
+                    tmdb_id=tmdb_id,
+                    art=current_art,
+                    showtitle=title,
+                ),
+                'next_video': dict(
+                    next_infolabels,
+                    tmdb_id=tmdb_id,
+                    art=next_art,
+                    showtitle=title,
+                ),
+                'play_info': {},
+                'player': player_name,
+            }
+        )
+        return None
 
     @staticmethod
     def _get_tmdb_movie_now_playing(current_video, tmdb_id):
         if not SETTINGS.import_tmdbhelper:
             return None
 
-        try:
-            from tmdb_helper import TMDb, get_item_details, get_next_movie
-            from tmdb_helper import TMDb, get_item_details, get_next_movie
+        from tmdb_helper import get_item_details, get_next_movie
 
-            if not TMDb.is_initialised():
-                return None
-            current_details = get_item_details('movie', tmdb_id)
-            if not current_details:
-                return None
-
-            next_movie = get_next_movie(tmdb_id)
-            if not next_movie:
-                return None
-
-            current_infolabels = getattr(current_details, 'infolabels', {}) or {}
-            current_art = getattr(current_details, 'art', {}) or {}
-            next_infolabels = getattr(next_movie, 'infolabels', {}) or {}
-            next_art = getattr(next_movie, 'art', {}) or {}
-            next_tmdb_id = getattr(next_movie, 'unique_ids', {}).get('tmdb', '')
-
-            play_url = 'plugin://{0}/?info=play&tmdb_type=movie&tmdb_id={1}'.format(
-                constants.TMDBH_ADDON_ID, next_tmdb_id
-            )
-
-            upnext.send_signal(
-                sender='UpNext.TMDBHelper',
-                upnext_info={
-                    'current_video': dict(
-                        current_infolabels,
-                        tmdb_id=tmdb_id,
-                        art=current_art,
-                        mediatype='movie',
-                    ),
-                    'next_video': dict(
-                        next_infolabels,
-                        tmdb_id=next_tmdb_id,
-                        art=next_art,
-                        mediatype='movie',
-                    ),
-                    'play_url': play_url,
-                }
-            )
-
-            return dict(
-                current_video,
-                type='movie',
-                title=current_infolabels.get('title', current_video.get('label', '')),
-                set=current_infolabels.get('set', ''),
-                setid=current_video.get('setid', -1),
-                tmdb_id=tmdb_id,
-            )
-
-        except (ImportError, AttributeError, TypeError):
+        current_details = get_item_details('movie', tmdb_id)
+        if not current_details:
             return None
+
+        next_movie = get_next_movie(tmdb_id)
+        if not next_movie:
+            return None
+
+        current_infolabels = getattr(current_details, 'infolabels', {}) or {}
+        current_art = getattr(current_details, 'art', {}) or {}
+        next_infolabels = getattr(next_movie, 'infolabels', {}) or {}
+        next_art = getattr(next_movie, 'art', {}) or {}
+        next_tmdb_id = getattr(next_movie, 'unique_ids', {}).get('tmdb', '')
+
+        play_url = 'plugin://{0}/?info=play&tmdb_type=movie&tmdb_id={1}'.format(
+            constants.TMDBH_ADDON_ID, next_tmdb_id
+        )
+
+        upnext.send_signal(
+            sender='UpNext.TMDBHelper',
+            upnext_info={
+                'current_video': dict(
+                    current_infolabels,
+                    tmdb_id=tmdb_id,
+                    art=current_art,
+                    mediatype='movie',
+                ),
+                'next_video': dict(
+                    next_infolabels,
+                    tmdb_id=next_tmdb_id,
+                    art=next_art,
+                    mediatype='movie',
+                ),
+                'play_url': play_url,
+            }
+        )
+
+        return dict(
+            current_video,
+            type='movie',
+            title=current_infolabels.get('title', current_video.get('label', '')),
+            set=current_infolabels.get('set', ''),
+            setid=current_video.get('setid', -1),
+            tmdb_id=tmdb_id,
+        )
 
     def get_plugin_type(self, playlist_next=None):
         if self.data:
@@ -606,13 +598,13 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             return
 
         data, encoding = plugin_data
-        self.log('Plugin data: {0}'.format(data))
 
         # Map to new data structure
         if 'current_episode' in data:
             data['current_video'] = data.pop('current_episode')
-        if 'next_episode' in data:
-            data['next_video'] = data.pop('next_episode')
+        if 'next_video' in data:
+            self.log('next video : {0}'.format(data['next_video']))
+            data['next_video'] = data.pop('next_video')
 
         self.data = data
         self.encoding = encoding or 'base64'

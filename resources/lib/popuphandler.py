@@ -145,6 +145,8 @@ class UpNextPopupHandler(object):
         return current_state
 
     def _play_next_video(self, next_item, popup_state, queued):
+        self.log(f"Next item: {next_item}")
+        self.log(f"Source: {next_item['source']}")
         forced = self.player.player_state.forced('playing')
         source = next_item['source']
         if SETTINGS.enable_resume:
@@ -179,13 +181,22 @@ class UpNextPopupHandler(object):
         elif source.startswith('plugin'):
             plugin_data = self.state.data
 
+            # Try playing via TMDB Helper Player class first
             play_data = plugin_data.get('play_data')
             if play_data:
-                from tmdb_helper import Players
+                try:
+                    from tmdb_helper import Players
+                    self.log("Using Players.play() to play next video")
+                    Players(**play_data).play()
+                    return keep_playing
+                except Exception as e:
+                    self.log(f"Players.play() failed: {e}", utils.LOGWARNING)
 
-                Players(**play_data).play()
-                return keep_playing
-
+            # Fallback: use play_plugin_item with path from next_video
+            next_video = plugin_data.get('next_video', {})
+            if not plugin_data.get('play_url') and next_video.get('path'):
+                plugin_data['play_url'] = next_video['path']
+            self.log(f"Fallback: Using play_plugin_item()")
             api.play_plugin_item(plugin_data, self.state.encoding, resume)
 
         # Fallback library playback method, not normally used

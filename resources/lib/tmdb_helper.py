@@ -23,6 +23,24 @@ def log(msg, level=utils.LOGDEBUG):
     utils.log(msg, name=__name__, level=level)
 
 
+TMDB_API_KEY = 'b5004196f5004839a7b0a89e623d3bd2'
+
+
+def _apply_custom_api_key():
+    """Apply custom TMDB API key"""
+    try:
+        # Remove only cached TMDB Helper lib modules, not the plugin itself
+        modules_to_remove = [m for m in sys.modules.keys() if 'tmdbhelper.lib' in m]
+        for module_name in modules_to_remove:
+            del sys.modules[module_name]
+        
+        # Import and set the API key
+        import tmdbhelper.lib.api.api_keys.tmdb as tmdb_keys
+        tmdb_keys.API_KEY = TMDB_API_KEY
+    except Exception as e:
+        log(f'Failed to apply API key')
+
+
 class Import(object):  # pylint: disable=too-few-public-methods
     def __new__(cls, name, mod_attrs=None):
         try:
@@ -102,11 +120,11 @@ class ClassImport(ObjectImport):  # pylint: disable=too-few-public-methods
 _TMDb = ClassImport(
     'tmdbhelper_lib.api.tmdb.api',
     'TMDb',
-    obj_attrs={'api_key': 'b5004196f5004839a7b0a89e623d3bd2'},
 )
 
 class TMDb(_TMDb):  # pylint: disable=inherit-non-class,too-few-public-methods
     def __init__(self, *args, **kwargs):
+        kwargs['api_key'] = TMDB_API_KEY
         super(TMDb, self).__init__(*args, **kwargs)
         try:
             self.tmdb_database.tmdb_api = self
@@ -119,6 +137,11 @@ class TMDb(_TMDb):  # pylint: disable=inherit-non-class,too-few-public-methods
         return super(TMDb, self).get_tmdb_id(*args, **kwargs)
 
 
+_Player = ObjectImport(
+    'tmdbhelper_lib.player.dialog.player',
+    'Player',
+)
+
 _PlayerDetails = ClassImport(
     'tmdbhelper_lib.player.dialog.details',
     'PlayerDetails',
@@ -129,35 +152,28 @@ _PlayerNextEpisodes = ClassImport(
     'PlayerNextEpisodes',
 )
 
-_PlayerEpisode = ClassImport(
-    'tmdbhelper_lib.player.dialog.player',
-    'PlayerEpisode',
-)
-
-_PlayerMovie = ClassImport(
-    'tmdbhelper_lib.player.dialog.player',
-    'PlayerMovie',
-)
-
 
 def get_item_details(tmdb_type, tmdb_id, season=None, episode=None):
-    if not _PlayerDetails.is_initialised():
-        return None
     try:
-        return _PlayerDetails(tmdb_type, tmdb_id, season, episode).details
-    except Exception:
+        _apply_custom_api_key()
+        details = _PlayerDetails(tmdb_type, tmdb_id, season, episode)
+        if details and hasattr(details, 'details'):
+            return details.details
+        return None
+    except Exception as e:
+        log(f"Failed to get item details: {e}")
         return None
 
 
 def get_next_episodes(tmdb_id, season, episode, player=None):
-    if not _PlayerNextEpisodes.is_initialised():
-        return None
-
     try:
+        _apply_custom_api_key()
+        log(f"Fetching next episodes for TMDb ID: {tmdb_id}, Season: {season}, Episode: {episode}")
         player_next = _PlayerNextEpisodes(tmdb_id, season, episode, player)
         items = player_next.items
 
         if not items:
+            log("No next episodes found in current season, checking next season.")
             player_next = _PlayerNextEpisodes(tmdb_id, season + 1, 0, player)
             items = player_next.items
 
@@ -176,21 +192,14 @@ def get_next_episodes(tmdb_id, season, episode, player=None):
             ]
 
         return items
-    except Exception:
+    except Exception as e:
+        log(f"Failed to get next episodes : {e}")
         return None
 
 
 def Players(**kwargs):
-    tmdb_type = kwargs.get('tmdb_type', 'tv')
-
-    if 'tmdb_id' not in kwargs:
-        kwargs['tmdb_id'] = TMDb().get_tmdb_id(**kwargs)
-
-    if tmdb_type == 'movie' and _PlayerMovie.is_initialised():
-        return _PlayerMovie(**kwargs)
-    if _PlayerEpisode.is_initialised():
-        return _PlayerEpisode(**kwargs)
-    return None
+    """Factory function to create appropriate Player instance"""
+    return _Player(**kwargs)
 
 
 def generate_player_data(upnext_data, player=None, play_url=False):
@@ -250,23 +259,15 @@ def generate_player_data(upnext_data, player=None, play_url=False):
 
 
 def get_next_movie(tmdb_id):
-    if not TMDb.is_initialised():
-        return None
+    _apply_custom_api_key()
 
-    # Import image path constants from TMDb Helper
-    try:
-        from tmdbhelper_lib.addon.consts import IMAGEPATH_ORIGINAL
-        from tmdbhelper_lib.addon.consts import IMAGEPATH_QUALITY_THUMBS
-        from tmdbhelper_lib.addon.plugin import get_setting
-        artwork_quality = get_setting('artwork_quality', 'int') or 0
-        thumb_base = IMAGEPATH_QUALITY_THUMBS[artwork_quality]
-    except (ImportError, IndexError):
-        IMAGEPATH_ORIGINAL = 'https://image.tmdb.org/t/p/original'
-        thumb_base = 'https://image.tmdb.org/t/p/w500'
+    IMAGEPATH_ORIGINAL = 'https://image.tmdb.org/t/p/original'
+    thumb_base = 'https://image.tmdb.org/t/p/w500'
 
-    # Helper class to create movie details from TMDb API data (fallback)
+    # Helper class to create movie details from TMDb API data
     class MovieDetails:
         def __init__(self, data):
+            log(f"Creating MovieDetails from API data for TMDb ID: {data.get('id', '')}")
             self.infolabels = {
                 'title': data.get('title', ''),
                 'plot': data.get('overview', ''),
@@ -282,17 +283,19 @@ def get_next_movie(tmdb_id):
             }
             self.unique_ids = {'tmdb': str(data.get('id', ''))}
 
-    def get_movie_with_cache_fallback(next_id, api_data):
-        """Try TMDb Helper cache first, fallback to API data"""
-        cached = get_item_details('movie', next_id)
-        if cached:
-            return cached
+    def get_movie_details_or_fallback(next_id, api_data):
+        """Get movie details from API or create from fallback data"""
+        details = get_item_details('movie', next_id)
+        if details:
+            log(f"Using movie details for TMDb ID: {next_id}")
+            return details
         return MovieDetails(api_data)
 
     try:
         tmdb = TMDb()
         movie_details = tmdb.get_response_json('movie', tmdb_id)
         if not movie_details:
+            log(f"No movie details found for TMDb ID: {tmdb_id}")
             return None
 
         belongs_to = movie_details.get('belongs_to_collection')
@@ -318,18 +321,16 @@ def get_next_movie(tmdb_id):
                                 found = True
                                 continue
                             if found:
-                                return get_movie_with_cache_fallback(movie.get('id'), movie)
+                                return get_movie_details_or_fallback(movie.get('id'), movie)
 
         recommendations = tmdb.get_response_json('movie/{0}/recommendations'.format(tmdb_id))
         if recommendations:
             results = recommendations.get('results', [])
             if results:
                 next_movie = results[0]
-                return get_movie_with_cache_fallback(next_movie.get('id'), next_movie)
+                return get_movie_details_or_fallback(next_movie.get('id'), next_movie)
 
         return None
     except Exception:
+        log(f"Failed to get next movie for TMDb ID: {tmdb_id}")
         return None
-
-
-
