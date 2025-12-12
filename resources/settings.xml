@@ -10,7 +10,7 @@
                 </setting>
                 <setting id="stopAfterClose" type="boolean" label="30505" help="">
                     <level>0</level>
-                    <default>true</default>
+                    <default>false</default>
                     <control type="toggle"/>
                 </setting>
             </group>
@@ -275,7 +275,7 @@
             <group id="playback" label="30601">
                 <setting id="autoPlayMode" type="integer" label="30603" help="30604">
                     <level>0</level>
-                    <default>0</default>
+                    <default>3</default>
                     <constraints>
                         <options>
                             <option label="30041">0</option>
@@ -319,7 +319,7 @@
                 </setting>
                 <setting id="markWatched" type="integer" label="30634" help="30635">
                     <level>0</level>
-                    <default>1</default>
+                    <default>0</default>
                     <constraints>
                         <options>
                             <option label="30050">0</option>
@@ -380,12 +380,12 @@
             <group id="unknownEndCreditsTime" label="30613">
                 <setting id="customAutoPlayTime" type="boolean" label="30615" help="">
                     <level>0</level>
-                    <default>false</default>
+                    <default>true</default>
                     <control type="toggle"/>
                 </setting>
                 <setting id="autoPlaySeasonTime" type="integer" label="30617" help="" parent="customAutoPlayTime">
                     <level>0</level>
-                    <default>10</default>
+                    <default>20</default>
                     <constraints>
                         <minimum>5</minimum>
                         <step>5</step>
@@ -457,7 +457,7 @@
                 </setting>
                 <setting id="autoPlayTimeL" type="integer" label="30625" help="" parent="customAutoPlayTime">
                     <level>0</level>
-                    <default>50</default>
+                    <default>80</default>
                     <constraints>
                         <minimum>5</minimum>
                         <step>5</step>
@@ -475,7 +475,7 @@
                 </setting>
                 <setting id="autoPlayTimeXL" type="integer" label="30627" help="" parent="customAutoPlayTime">
                     <level>0</level>
-                    <default>60</default>
+                    <default>120</default>
                     <constraints>
                         <minimum>5</minimum>
                         <step>5</step>
@@ -493,7 +493,7 @@
                 </setting>
                 <setting id="detectPlayTime" type="boolean" label="30630" help="">
                     <level>0</level>
-                    <default>true</default>
+                    <default>false</default>
                     <control type="toggle"/>
                 </setting>
                 <setting id="detectPeriod" type="integer" label="30631" help="30632" parent="detectPlayTime">
@@ -521,7 +521,7 @@
                 </setting>
                 <setting id="detectChaptersThreshold" type="integer" label="30651" help="30652" parent="detectChapters">
                     <level>0</level>
-                    <default>91</default>
+                    <default>93</default>
                     <constraints>
                         <minimum>85</minimum>
                         <step>1</step>
@@ -548,7 +548,7 @@
             <group id="general" label="30717">
                 <setting id="enableQueue" type="boolean" label="30707" help="30708">
                     <level>0</level>
-                    <default>true</default>
+                    <default>false</default>
                     <control type="toggle"/>
                 </setting>
                 <setting id="earlyQueueReset" type="boolean" label="30704" help="" parent="enableQueue">
@@ -596,7 +596,7 @@
                 </setting>
                 <setting id="queueFromTMDB" type="boolean" label="30713" help="30714" parent="enableTMDBHelper">
                     <level>0</level>
-                    <default>true</default>
+                    <default>false</default>
                     <control type="toggle"/>
                     <dependencies>
                         <dependency type="visible">
