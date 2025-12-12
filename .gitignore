@@ -28,3 +28,6 @@ GPATH
 GRTAGS
 NppGTags.cfg
 GTAGS
+
+# macOS files
+.DS_Store

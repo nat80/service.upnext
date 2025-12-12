@@ -8,16 +8,19 @@ NAME=$(grep 'addon id=' "$ADDON_XML" | sed -nE 's/.*id="([^"]+)".*/\1/p' | head 
 VERSION=$(grep 'addon id=' "$ADDON_XML" | sed -nE 's/.*version="([^"]+)".*/\1/p' | head -1)
 
 echo "Building $NAME version $VERSION"
-rm -rf dist
-mkdir -p dist
+mkdir -p repo/service.upnext
 
 # Create temp copy
-cp -r . .build_temp
+mkdir -p .build_temp/service.upnext
+cp addon.xml .build_temp/service.upnext/
+cp -r resources .build_temp/service.upnext/
+cp LICENSE README.md changelog.txt .build_temp/service.upnext/
+
 cd .build_temp
 
 # Create zip
-ZIP_FILE="../dist/${NAME}-${VERSION}.zip"
-zip -r "$ZIP_FILE" addon.xml LICENSE README.md changelog.txt resources/ \
+ZIP_FILE="../repo/service.upnext/${NAME}-${VERSION}.zip"
+zip -r "$ZIP_FILE" service.upnext/ \
     -x "*/\.*" "*/\__pycache__/*" "*/*.pyc" "*/*.pyo" "*.DS_Store" \
     > /dev/null 2>&1
 
@@ -28,18 +31,17 @@ rm -rf .build_temp
 
 # Generate addons.xml and md5
 echo "Generating addons.xml and addons.xml.md5"
-cp addon.xml dist/
 
 python3 - <<'PYEOF'
 import hashlib
 from pathlib import Path
 
-DIST_DIR = Path("dist")
-addon_xml = DIST_DIR / "addon.xml"
-addons_xml = DIST_DIR / "addons.xml"
+ADDON_XML = Path("addon.xml")
+REPO_DIR = Path("repo")
+addons_xml = REPO_DIR / "addons.xml"
 
-# Read addon.xml and strip XML declaration
-with open(addon_xml) as f:
+# Read addon.xml and extract addon element
+with open(ADDON_XML) as f:
     content = f.read().strip()
     # Remove XML declaration if present
     if content.startswith('<?xml'):
@@ -53,7 +55,7 @@ with open(addons_xml, 'w') as f:
 
 # Write md5
 md5 = hashlib.md5(wrapped.encode()).hexdigest()
-with open(DIST_DIR / "addons.xml.md5", 'w') as f:
+with open(REPO_DIR / "addons.xml.md5", 'w') as f:
     f.write(md5)
 
 print("  Created: addons.xml")
@@ -61,5 +63,5 @@ print("  Created: addons.xml.md5")
 PYEOF
 
 echo ""
-echo "Done! Files in dist/:"
-ls -1 dist/
+echo "Done! Files in repo/:"
+ls -1 repo/
