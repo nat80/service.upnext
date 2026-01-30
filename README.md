@@ -18,6 +18,10 @@ Personal fork of service.upnext (commits are often untested and cause addon to b
 - Experimental use of TheMovieDb Helper players for automatic integration with any plugin that has a player
 - Built-in methods to simplify plugin integration
 
+### Additional changes made in the nat80 fork:
+- **TMDb Helper compatibility fixes**: Fixed API call to work with the latest versions of TMDb Helper addon
+- **Credits chapter detection**: Automatically detects credits using video chapter markers (with configurable threshold percentage in settings)
+
 Changelog: [changelog.txt](changelog.txt)
 
 Official release available through official Kodi addon repository and at [https://github.com/im85288/service.upnext/](https://github.com/im85288/service.upnext/)
