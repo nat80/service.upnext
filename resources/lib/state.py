@@ -25,6 +25,7 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         'next_item',
         'popup_time',
         'popup_cue',
+        'chapter_detected',
         'detect_time',
         'shuffle_on',
         # Tracking player state variables
@@ -50,6 +51,7 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         self.next_item = None
         self.popup_time = 0
         self.popup_cue = False
+        self.chapter_detected = False
         self.detect_time = 0
         self.shuffle_on = False
         # Tracking player state variables
@@ -164,9 +166,10 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         return self.detect_time
 
     def _set_detect_time(self):
-        # Don't use detection time period if a plugin cue point was provided,
-        # or end credits detection is disabled
-        if self.popup_cue or not SETTINGS.detect_enabled:
+        # Don't use detection time period if end credits detection is disabled.
+        # Allow detection even when a plugin-provided cue point exists so the
+        # subtitle-based detector can run for testing and provide logs.
+        if not SETTINGS.detect_enabled:
             self.detect_time = None
             return
 
@@ -187,18 +190,18 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             # Force popup time to specified play time
             popup_time = detected_time
 
-            # Enable cue point unless forced off in sim mode
-            self.popup_cue = SETTINGS.sim_cue != constants.SETTING_OFF
+            # Disable cue point to keep popup until video ends (like fallback)
+            self.popup_cue = SETTINGS.sim_cue == constants.SETTING_ON
 
         self.popup_time = popup_time
         self._set_detect_time()
 
-        self.log('Popup: due at {0}s of {1}s (cue: {2})'.format(
-            self.popup_time, self.total_time, self.popup_cue
+        popup_pct = (self.popup_time / self.total_time * 100) if self.total_time > 0 else 0
+        self.log('Popup: due at {0}s of {1}s ({2:.1f}%) (auto_play: {3})'.format(
+            self.popup_time, self.total_time, popup_pct, self.popup_cue
         ), utils.LOGINFO)
 
-    @staticmethod
-    def get_final_chapter_time(total_time, threshold=80):
+    def get_final_chapter_time(self, total_time, threshold=80):
         """Get the start time of the final chapter if it's likely credits.
         Returns the time in seconds, or None if no suitable chapter found.
         
@@ -214,11 +217,14 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             import xbmc
             chapters_str = xbmc.getInfoLabel('Player.Chapters')
             if not chapters_str:
+                self.log('Chapter detection: no chapters found in video')
                 return None
             # Chapters are comma-separated percentages
             chapters = [float(c.strip()) for c in chapters_str.split(',') if c.strip()]
             if len(chapters) < 2:
                 # Need at least 2 chapters (content + credits)
+                self.log('Chapter detection: only {0} chapter(s) found, need at least 2'.format(
+                    len(chapters)))
                 return None
             
             # Filter out chapters that start less than 10 seconds from the end
@@ -226,6 +232,8 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             min_threshold = ((total_time - 10) / total_time) * 100 if total_time > 10 else 0
             valid_chapters = [c for c in chapters if c < min_threshold]
             if len(valid_chapters) < 2:
+                self.log('Chapter detection: only {0} valid chapter(s) after filtering'.format(
+                    len(valid_chapters)))
                 return None
             
             # Method 2 (priority): If exactly ONE chapter in last 30% AND in last 10%
@@ -238,9 +246,14 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             final_chapter = valid_chapters[-1]
             if final_chapter >= threshold:
                 return int((final_chapter / 100) * total_time)
+            else:
+                chapter_time = int((final_chapter / 100) * total_time)
+                self.log('Chapter detection: last chapter at {0:.1f}% ({1}s) is below {2}% threshold ({3}s)'.format(
+                    final_chapter, chapter_time, threshold, int((threshold / 100) * total_time)))
+                return None
                 
-        except (ValueError, TypeError, AttributeError):
-            pass
+        except (ValueError, TypeError, AttributeError) as e:
+            self.log('Chapter detection error: {0}'.format(e))
         return None
 
     def set_popup_time(self, total_time):
@@ -254,14 +267,19 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
 
         # Try chapter detection first if enabled
         if SETTINGS.detect_chapters:
+            self.log('Attempting chapter detection with {0}% threshold'.format(
+                SETTINGS.detect_threshold))
             chapter_time = self.get_final_chapter_time(
-                total_time, SETTINGS.detect_chapters_threshold
+                total_time, SETTINGS.detect_threshold
             )
             if chapter_time:
                 popup_time = chapter_time
+                self.chapter_detected = True
                 # Disable cue point to keep popup until video ends (like fallback)
                 self.popup_cue = SETTINGS.sim_cue == constants.SETTING_ON
                 self.log('Popup: using chapter detection at {0}s'.format(popup_time))
+            else:
+                self.log('Chapter detection: no suitable chapters found')
 
         # Alway use plugin data, when available
         if not popup_time and self.get_plugin_type():
@@ -303,8 +321,9 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
         self.popup_time = popup_time
         self._set_detect_time()
 
-        self.log('Popup: due at {0}s of {1}s (cue: {2})'.format(
-            self.popup_time, self.total_time, self.popup_cue
+        popup_pct = (self.popup_time / self.total_time * 100) if self.total_time > 0 else 0
+        self.log('Popup: due at {0}s of {1}s ({2:.1f}%) (auto_play: {3})'.format(
+            self.popup_time, self.total_time, popup_pct, self.popup_cue
         ), utils.LOGINFO)
 
     def process_now_playing(self, playlist_position, plugin_type, play_info):

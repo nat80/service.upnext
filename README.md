@@ -21,6 +21,7 @@ Personal fork of service.upnext (commits are often untested and cause addon to b
 ### Additional changes made in the nat80 fork:
 - **TMDb Helper compatibility fixes**: Fixed API call to work with the latest versions of TMDb Helper addon
 - **Credits chapter detection**: Automatically detects credits using video chapter markers (with configurable threshold percentage in settings)
+- **Subtitle-based end detection**: Detects end-of-episode from the last subtitle timestamp in MKV streams using embedded cues and keyword detection. Configurable max-percent threshold to prevent false positives near file end.
 
 Changelog: [changelog.txt](changelog.txt)
 

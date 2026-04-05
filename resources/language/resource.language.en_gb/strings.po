@@ -434,7 +434,7 @@ msgid "Very long videos [COLOR gray]> 60 mins[/COLOR]"
 msgstr ""
 
 msgctxt "#30630"
-msgid "Auto-detect end credits"
+msgid "Auto-detect end credits (image analysis)"
 msgstr ""
 
 msgctxt "#30631"
@@ -498,15 +498,35 @@ msgid "Use chapters to detect credits"
 msgstr ""
 
 msgctxt "#30651"
-msgid "Chapter threshold"
+msgid "Chapter detection threshold"
 msgstr ""
 
 msgctxt "#30652"
-msgid "If the final chapter starts at or after this percentage of the video, it will be used as the credits start time"
+msgid "Only use the chapter detection after this percentage of the video"
 msgstr ""
 
 msgctxt "#30653"
 msgid "{0:d}%"
+msgstr ""
+
+msgctxt "#30654"
+msgid "Use subtitles to detect credits"
+msgstr ""
+
+msgctxt "#30655"
+msgid "Subtitle detection threshold"
+msgstr ""
+
+msgctxt "#30656"
+msgid "Only use the subtitle detection after this percentage of the video"
+msgstr ""
+
+msgctxt "#30657"
+msgid "Max. subtitle detection threshold"
+msgstr ""
+
+msgctxt "#30658"
+msgid "Above this percentage of the video, subtitle-based end detection is ignored and the default time is used."
 msgstr ""
 
 msgctxt "#30700"

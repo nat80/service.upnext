@@ -8,6 +8,7 @@ from time import time
 import api
 import constants
 import detector
+import subtitle_end_detector
 import player
 import popuphandler
 import simulation
@@ -143,6 +144,13 @@ class UpNextMonitor(xbmc.Monitor, object):
 
             # Store popup time and check if cue point was provided
             self.state.set_popup_time(play_info['duration'])
+
+            # Launch subtitle detection only if chapter detection didn't find anything
+            if SETTINGS.detect_subtitles and not self.state.chapter_detected:
+                utils.run_threaded(
+                    self._launch_subtitle_detector,
+                    kwargs={'file_path': play_info['file']}
+                )
 
             # Handle sim mode functionality and notification
             skip_tracking = simulation.handle_sim_mode(
@@ -337,6 +345,15 @@ class UpNextMonitor(xbmc.Monitor, object):
         self._idle[0] = constants.IDLE_STATE['active']
 
         return play_info
+
+    def _launch_subtitle_detector(self, file_path):
+        if not self.state or not self.player:
+            return
+        sub_detector = subtitle_end_detector.SubtitleEndDetector(
+            player=self.player,
+            state=self.state
+        )
+        sub_detector.detect(file_path)
 
     def _launch_detector(self):
         del self._detector

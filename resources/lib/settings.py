@@ -23,7 +23,8 @@ class UpNextSettings(object):
         'auto_play',
         'default_action_delay',
         'detect_chapters',
-        'detect_chapters_threshold',
+        'detect_subtitles',
+        'detect_threshold',
         'detect_enabled',
         'detect_level',
         'detect_matches',
@@ -152,8 +153,10 @@ class UpNextSettings(object):
         try:
             value = self._get_string(self._store, key)
             value = statichelper.from_bytes(value)
-        # Occurs when the addon is disabled
-        except RuntimeError:
+        # Common failures when the underlying settings store isn't available
+        # (e.g. accessed from a non-main thread before Kodi has initialized
+        # the settings object) or when the descriptor isn't bound.
+        except (RuntimeError, AttributeError, TypeError):
             value = default
 
         if echo:
@@ -244,7 +247,13 @@ class UpNextSettings(object):
         self.detect_enabled = self.get_bool('detectPlayTime')
         self.detect_period = self.get_int('detectPeriod')
         self.detect_chapters = self.get_bool('detectChapters')
-        self.detect_chapters_threshold = self.get_int('detectChaptersThreshold', default=80)
+        self.detect_subtitles = self.get_bool('detectSubtitles', default=True)
+        # Generic threshold used by all end-detection methods (chapters, subtitles, …)
+        # Falls back to legacy key so existing user settings are preserved on upgrade.
+        self.detect_threshold = self.get_int(
+            'detectThreshold',
+            default=self.get_int('detectChaptersThreshold', default=80)
+        )
 
         self.enable_queue = self.get_bool('enableQueue')
         self.early_queue_reset = self.get_bool('earlyQueueReset')

@@ -1,4 +1,7 @@
 ## Releases
+### v2.0.30+nat80.4 (2026-04-05)
+- Add subtitle-based end detection for MKV streams
+
 ### v2.0.30+dev.0 (2024-10-24)
 - Ensure settings are reloaded for plugin invocations when settings change
 - Improve UpNext tvshow/episode widget
