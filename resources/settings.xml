@@ -562,7 +562,7 @@
                 </setting>
                 <setting id="detectSubtitlesMaxPercent" type="integer" label="30657" help="30658" parent="detectSubtitles">
                     <level>0</level>
-                    <default>95</default>
+                    <default>98</default>
                     <constraints>
                         <minimum>90</minimum>
                         <step>1</step>

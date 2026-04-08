@@ -201,7 +201,7 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             self.popup_time, self.total_time, popup_pct, self.popup_cue
         ), utils.LOGINFO)
 
-    def get_final_chapter_time(self, total_time, threshold=80):
+    def get_final_chapter_time(self, total_time, threshold):
         """Get the start time of the final chapter if it's likely credits.
         Returns the time in seconds, or None if no suitable chapter found.
         
@@ -267,10 +267,10 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
 
         # Try chapter detection first if enabled
         if SETTINGS.detect_chapters:
-            self.log('Attempting chapter detection with {0}% threshold'.format(
-                SETTINGS.detect_threshold))
+            threshold = SETTINGS.detect_chapters_threshold
+            self.log('Attempting chapter detection with {0}% threshold'.format(threshold))
             chapter_time = self.get_final_chapter_time(
-                total_time, SETTINGS.detect_threshold
+                total_time, threshold
             )
             if chapter_time:
                 popup_time = chapter_time

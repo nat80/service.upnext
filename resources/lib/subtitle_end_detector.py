@@ -398,8 +398,9 @@ class MKVEndParser(object):
 
             # Keywords for end-of-episode detection
             END_KEYWORDS = [
-                'subtitles', 'sous-titres', 'перевод субтитров', 'subtitles by', 'traduction',
-                'subtitling', 'adaptation', 'captioning', 'caption', 'captioned by', 'subtitulado', 'traducción'
+                'subtitles', 'sous-titres', 'перевод субтитров', 'traduction',
+                'subtitling', 'adaptation', 'captioning', 'caption', 'captioned', 'subtitulado',
+                'traducción', 'credits', 'music', 'end', 'fin', 'outro', 'ending', '♪'
             ]
 
             # Find END-marked subtitles in last blocks of each track
@@ -449,14 +450,32 @@ class MKVEndParser(object):
 
             # Apply max percent threshold check to both END and fallback detection
             max_percent = self._get_max_end_percent()
-            
-            if end_blocks:
-                # Use first END-marked block
-                end_seconds = end_blocks[0][2] / 1000.0
+
+            # If the last subtitle of a track contains a keyword, prefer that
+            # subtitle — choosing the one that is least close to the very end
+            last_keyword_blocks = []
+            for num in subtitle_track_numbers:
+                blocks_for_num = [b for b in all_blocks if b[0] == num]
+                if not blocks_for_num:
+                    continue
+                last_blk = blocks_for_num[-1]
+                text = (last_blk[3] or '').lower()
+                if any(kw in text for kw in END_KEYWORDS):
+                    last_keyword_blocks.append(last_blk)
+
+            if last_keyword_blocks:
+                best_block = min(last_keyword_blocks, key=lambda b: b[2])
+                end_seconds = best_block[2] / 1000.0
             else:
-                # Fallback to last subtitle of any track
-                last_block = max(all_blocks, key=lambda b: b[1])
-                end_seconds = last_block[2] / 1000.0
+                if end_blocks:
+                    # If no track's last subtitle matched a keyword, fall back to
+                    # END-marked blocks and choose the least-close-to-end one.
+                    best_block = min(end_blocks, key=lambda b: b[2])
+                    end_seconds = best_block[2] / 1000.0
+                else:
+                    # Final fallback: last subtitle seen in any track
+                    last_block = max(all_blocks, key=lambda b: b[1])
+                    end_seconds = last_block[2] / 1000.0
 
             # Validate timestamp against max percent threshold
             if duration:
@@ -873,7 +892,7 @@ class SubtitleEndDetector(object):
         # Sanity check: reject timestamps before the configured detection
         # threshold to avoid setting an early popup from sparse subtitle tracks.
         total_time = getattr(self.state, 'total_time', 0) if self.state else 0
-        threshold_pct = getattr(SETTINGS, 'detect_threshold', 80)
+        threshold_pct = SETTINGS.detect_subtitles_threshold
         if total_time > 0:
             min_time = total_time * threshold_pct / 100.0
             if timestamp < min_time:

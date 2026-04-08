@@ -23,8 +23,9 @@ class UpNextSettings(object):
         'auto_play',
         'default_action_delay',
         'detect_chapters',
+        'detect_chapters_threshold',
+        'detect_subtitles_threshold',
         'detect_subtitles',
-        'detect_threshold',
         'detect_enabled',
         'detect_level',
         'detect_matches',
@@ -247,13 +248,9 @@ class UpNextSettings(object):
         self.detect_enabled = self.get_bool('detectPlayTime')
         self.detect_period = self.get_int('detectPeriod')
         self.detect_chapters = self.get_bool('detectChapters')
-        self.detect_subtitles = self.get_bool('detectSubtitles', default=True)
-        # Generic threshold used by all end-detection methods (chapters, subtitles, …)
-        # Falls back to legacy key so existing user settings are preserved on upgrade.
-        self.detect_threshold = self.get_int(
-            'detectThreshold',
-            default=self.get_int('detectChaptersThreshold', default=80)
-        )
+        self.detect_subtitles = self.get_bool('detectSubtitles')
+        self.detect_chapters_threshold = self.get_int('detectChaptersThreshold')
+        self.detect_subtitles_threshold = self.get_int('detectSubtitlesThreshold')
 
         self.enable_queue = self.get_bool('enableQueue')
         self.early_queue_reset = self.get_bool('earlyQueueReset')
