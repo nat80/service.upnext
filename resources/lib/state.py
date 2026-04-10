@@ -69,6 +69,20 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
     def log(cls, msg, level=utils.LOGDEBUG):
         utils.log(msg, name=cls.__name__, level=level)
 
+    @classmethod
+    def _get_tmdb_from_trakt_prop(cls):
+        """Return TMDB id from Trakt window property or None."""
+        prop = utils.get_property('script.trakt.ids')
+        if not prop:
+            return None
+        try:
+            traktids, _ = utils.decode_data(serialised_json=prop)
+            if traktids:
+                return traktids.get('tmdb')
+        except Exception:
+            pass
+        return None
+
     def reset(self):
         self.__init__(reset=True)  # pylint: disable=unnecessary-dunder-call
 
@@ -407,18 +421,19 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
             if (current_video['set']
                     and utils.get_int(current_video, 'setid') > 0):
                 return current_video
-            if SETTINGS.enable_tmdbhelper_fallback:
-                # Try to get TMDB ID from plugin URL or by searching
-                if not tmdb_id:
-                    from tmdb_helper import TMDb
-                    title = current_video.get('title', '')
-                    year = utils.get_int(current_video, 'year')
-                    if title:
-                        tmdb_id = TMDb().get_tmdb_id(
-                            tmdb_type='movie', query=title, year=year if year else None
-                        )
-                if tmdb_id:
-                    return cls._get_tmdb_movie_now_playing(current_video, tmdb_id)
+            if not tmdb_id:
+                tmdb_id = cls._get_tmdb_from_trakt_prop()
+            if not tmdb_id and SETTINGS.enable_tmdbhelper_fallback:
+            # Try to get TMDB ID from plugin URL or by searching
+                from tmdb_helper import TMDb
+                title = current_video.get('title', '')
+                year = utils.get_int(current_video, 'year')
+                if title:
+                    tmdb_id = TMDb().get_tmdb_id(
+                        tmdb_type='movie', query=title, year=year if year else None
+                    )
+            if tmdb_id:
+                return cls._get_tmdb_movie_now_playing(current_video, tmdb_id)
             return None
 
         # Previously resolved listitems may lose infotags that are set when the
@@ -502,17 +517,29 @@ class UpNextState(object):  # pylint: disable=too-many-public-methods
 
         from tmdb_helper import TMDb, get_item_details, get_next_episodes
 
+        utils.log('Getting TMDB now playing: title={0}, season={1}, episode={2}'.format(
+            title, season, episode), name='UpNextState', level=utils.LOGINFO)
+
         tmdb_id = current_video.get('tmdb_id')
+        utils.log('TMDB ID from current video: {0}'.format(tmdb_id), name='UpNextState', level=utils.LOGINFO)
+        if not tmdb_id:
+            tmdb_id = UpNextState._get_tmdb_from_trakt_prop()
+            utils.log('TMDB ID from Trakt property: {0}'.format(tmdb_id), name='UpNextState', level=utils.LOGINFO)
         if not tmdb_id:
             tmdb_id = TMDb().get_tmdb_id(
                 tmdb_type='tv', query=title, season=season, episode=episode
             )
+            utils.log('TMDB ID from search: {0}'.format(tmdb_id), name='UpNextState', level=utils.LOGINFO)
+        if not tmdb_id:
+            utils.log('TMDB ID not found', name='UpNextState', level=utils.LOGERROR)
+            return None
 
         current_details = get_item_details('tv', tmdb_id, season, episode)
         episodes = get_next_episodes(tmdb_id, season, episode)
         
         # Return None if no episodes found
         if not episodes:
+            utils.log('No episodes found', name='UpNextState', level=utils.LOGERROR)
             return None
         
         player_name = current_video.get('player', addon_id)
