@@ -25,6 +25,7 @@ class UpNextSettings(object):
         'detect_chapters',
         'detect_chapters_threshold',
         'detect_subtitles_threshold',
+        'detect_subtitles_max_pct',
         'detect_subtitles',
         'detect_enabled',
         'detect_level',
@@ -251,6 +252,7 @@ class UpNextSettings(object):
         self.detect_subtitles = self.get_bool('detectSubtitles')
         self.detect_chapters_threshold = self.get_int('detectChaptersThreshold')
         self.detect_subtitles_threshold = self.get_int('detectSubtitlesThreshold')
+        self.detect_subtitles_max_pct = self.get_int('detectSubtitlesMaxPercent')
 
         self.enable_queue = self.get_bool('enableQueue')
         self.early_queue_reset = self.get_bool('earlyQueueReset')

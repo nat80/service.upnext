@@ -237,9 +237,9 @@ class MKVEndParser(object):
         utils.log(msg, name='MKVEndParser', level=level)
 
     def _get_max_end_percent(self):
-        """Retrieve max END percent threshold from settings (90-99, default 95)."""
-        max_pct = SETTINGS.get_int('detectSubtitlesMaxPercent', default=95) or 95
-        return max(90, min(99, max_pct)) / 100.0
+        """Return max subtitle end percent (90-99%) as decimal"""
+        pct = SETTINGS.detect_subtitles_max_pct or 98
+        return int(pct) / 100.0
 
     def _format_percentage(self, timestamp_sec, duration_sec):
         """Format percentage string for logging. Returns '(pct%)' or empty string."""
